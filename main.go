@@ -2,37 +2,50 @@ package main
 
 import (	
 	"context"	
-	"fmt"
+	"strings"
 	// "github.com/aws/aws-lambda-go/lambda"
+	"fmt"
 )
 
 // Service API
-type PingRequest struct {
+type StatusRequest struct {
 	Host string `json:"host"`
 }
 
-type PingResponse struct {
-	AvgRtt float32 `json:"avgRtt"`
+type StatusResponse struct {
+	Host string `json:"host"`
+	StatusCode int `json:"statusCode"`
+	TTFB int `json:"ttfb"`
 }
 
 // TODO configure via environment variables
-func Response(host string) (*PingResponse, error) {
-	statistics, err := Ping(host); if err != nil {
+func Response(host string) (*StatusResponse, error) {
+	hostUrl := addProtocol(host)
+	status, err := GetStatus(hostUrl); if err != nil {
 		return nil, err
 	}
 
-	return &PingResponse{AvgRtt: statistics.AvgRtt}, nil
+	return &StatusResponse{Host: hostUrl,
+						   StatusCode: status.StatusCode,
+						   TTFB: int(status.TTFB)}, nil
+}
+
+func addProtocol(host string) string {
+	if !(strings.HasPrefix(host, "http://") && strings.HasPrefix(host, "https://")) {
+		return "https://" + host
+	}
+	return host
 }
 
 // AWS Lambda API specifcs
-func HandleRequest(ctx context.Context, pingReq PingRequest) (PingResponse, error) {
-	response, err := Response(pingReq.Host); if err != nil {
-		return PingResponse{}, err
+func HandleRequest(ctx context.Context, statusReq StatusRequest) (StatusResponse, error) {
+	response, err := Response(statusReq.Host); if err != nil {
+		return StatusResponse{}, err
 	}
 	return *response, nil
 }
 
 func main() {
+	fmt.Println(HandleRequest(nil, StatusRequest{Host: "www.google.sk"}))
 	// lambda.Start(HandleRequest)
-	fmt.Println(Response("www.google.sk"))
 }
