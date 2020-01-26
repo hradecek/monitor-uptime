@@ -6,12 +6,12 @@ import (
 	"time"
 )
 
-type Status struct {
+type Uptime struct {
 	StatusCode int
 	TTFB time.Duration
 }
-// GetStatus returns HTTP status code and time to first byte (TTFB) for provided host
-func GetStatus(host string) (*Status, error) {
+// GetUptime returns HTTP status code and time to first byte (TTFB) for provided host
+func GetUptime(host string, timeout int) (*Uptime, error) {
 	var start time.Time
 	var first_byte time.Duration
 	req, err := http.NewRequest("GET", host, nil)
@@ -24,11 +24,14 @@ func GetStatus(host string) (*Status, error) {
         },
 	}
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+	client := &http.Client{
+		Timeout: time.Duration(timeout) * time.Second,
+	}
 	start = time.Now()
-	res, err := http.DefaultTransport.RoundTrip(req)
+	res, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Status{StatusCode: res.StatusCode, TTFB: first_byte / time.Millisecond}, nil
+	return &Uptime{StatusCode: res.StatusCode, TTFB: first_byte / time.Millisecond}, nil
 }
