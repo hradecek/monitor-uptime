@@ -1,7 +1,7 @@
 package main
 
-import (	
-	"context"	
+import (
+	"context"
 	"os"
 	"time"
 	"strconv"
@@ -13,6 +13,7 @@ import (
 // Service API
 type UptimeRequest struct {
 	ClientID string `json:"clientId"`
+	UptimeID string `json:"uptimeId"`
 	Host string `json:"host"`
 }
 
@@ -63,7 +64,8 @@ func HandleRequest(ctx context.Context, statusReq UptimeRequest) (UptimeResponse
 	err = storeUptime(UptimeItem{
 		RequestID: uuid.New().String(),
 		ClientID: statusReq.ClientID,
-		Timestamp: time.Now(),
+		UptimeID: statusReq.UptimeID,
+		RunAt: time.Now().Unix(),
 		Host: statusReq.Host,
 		StatusCode: response.StatusCode,
 		TTFB: response.TTFB,

@@ -19,6 +19,9 @@ func GetUptime(host string, timeout int) (*Uptime, error) {
 		return nil, err
 	}
 	trace := &httptrace.ClientTrace{
+		GetConn: func(_ string) {
+			start = time.Now()
+		},
 		GotFirstResponseByte: func() {
             first_byte = time.Since(start)
         },
@@ -27,7 +30,6 @@ func GetUptime(host string, timeout int) (*Uptime, error) {
 	client := &http.Client{
 		Timeout: time.Duration(timeout) * time.Second,
 	}
-	start = time.Now()
 	res, err := client.Do(req)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"time"
 	"github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/dynamodb"
@@ -9,12 +8,13 @@ import (
 )
 
 type UptimeItem struct {
-	RequestID string
-	ClientID string
-	Timestamp time.Time
-	Host string
-	StatusCode int
-	TTFB int 
+	RequestID string `json:"requestId"`
+	ClientID string `json:"clientId"`
+	UptimeID string `json:"uptimeId"`
+	RunAt int64 `json:"runAt"`
+	Host string `json:"host"`
+	StatusCode int `json:"statusCode"`
+	TTFB int `json:"ttfb"`
 }
 
 func storeUptime(uptime UptimeItem, tableName string) error {
