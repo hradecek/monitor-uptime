@@ -8,13 +8,15 @@ import (
 	"strings"
 	"github.com/google/uuid"
 	"github.com/aws/aws-lambda-go/lambda"
+    "github.com/aws/aws-sdk-go/aws/session"
+    "github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
 // Service API
 type UptimeRequest struct {
-	ClientID string `json:"clientId"`
 	UptimeID string `json:"uptimeId"`
 	Host string `json:"host"`
+	StatusCodes []int `json:"statusCodes"`
 }
 
 type UptimeResponse struct {
@@ -38,7 +40,7 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-func Response(host string) (*UptimeResponse, error) {
+func response(host string) (*UptimeResponse, error) {
 	hostUrl := addProtocol(host)
 	status, err := GetUptime(hostUrl, getEnvInt("TIMEOUT", 4)); if err != nil {
 		return nil, err
@@ -56,22 +58,41 @@ func addProtocol(host string) string {
 	return host
 }
 
+func hasExpectedStatusCode(actualStatusCode int, expectedStatusCodes []int) bool {
+	for _, expectedStatusCode := range expectedStatusCodes {
+		if expectedStatusCode == actualStatusCode {
+			return true
+		}
+	}
+	return false
+}
+
 // AWS Lambda API specifcs
 func HandleRequest(ctx context.Context, statusReq UptimeRequest) (UptimeResponse, error) {
-	response, err := Response(statusReq.Host); if err != nil {
+	response, err := response(statusReq.Host); if err != nil {
 		return UptimeResponse{}, err
 	}
-	err = storeUptime(UptimeItem{
+
+	db := dynamodb.New(session.Must(session.NewSessionWithOptions(session.Options{SharedConfigState: session.SharedConfigEnable})))
+	err = StoreUptime(UptimeItem{
 		RequestID: uuid.New().String(),
-		ClientID: statusReq.ClientID,
 		UptimeID: statusReq.UptimeID,
 		RunAt: time.Now().Unix(),
 		Host: statusReq.Host,
 		StatusCode: response.StatusCode,
 		TTFB: response.TTFB,
-	}, getEnvString("DYNAMO_TABLE", "uptimes")); if err != nil {
+	}, getEnvString("DYNAMO_TABLE", "uptimes"), db); if err != nil {
 		return UptimeResponse{}, err
 	}
+
+	if !hasExpectedStatusCode(response.StatusCode, statusReq.StatusCodes) {
+		err = PublishUptime(UptimeNotification{
+			StatusCode: response.StatusCode,
+		}, statusReq.UptimeID, getEnvString("SNS_TOPIC", "sns_topic")); if err != nil {
+			return UptimeResponse{}, err
+		}
+	}
+
 	return *response, nil
 }
 

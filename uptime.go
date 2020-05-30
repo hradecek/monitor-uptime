@@ -10,6 +10,7 @@ type Uptime struct {
 	StatusCode int
 	TTFB time.Duration
 }
+
 // GetUptime returns HTTP status code and time to first byte (TTFB) for provided host
 func GetUptime(host string, timeout int) (*Uptime, error) {
 	var start time.Time
