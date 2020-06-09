@@ -3,6 +3,7 @@ Environment variables:
 
  - TIMEOUT timeout in seconds
  - DYNAMO_TABLE DynamoDB table name
+ - SNS_TOPIC ARN of SNS topic
 
 ## Build
 On Windows (CMD):

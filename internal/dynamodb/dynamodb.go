@@ -1,0 +1,38 @@
+package dynamodb
+
+import (
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+)
+
+// Represents uptime monitor result that will be stored in DynamoDB
+// Item contains all collected data from single uptime monitor run
+type UptimeItem struct {
+	RequestID  string `json:"requestId"`  // Uniquely identifies single uptime monitor's run
+	UptimeID   string `json:"uptimeId"`
+	RunAt      int64  `json:"runAt"`      // Timestamp when the uptime monitor has been invoked
+	Host       string `json:"host"`
+	StatusCode int    `json:"statusCode"`
+	TTFB       int    `json:"ttfb"`       // Resulted 'time to first byte'
+}
+
+// Store uptime monitor result in DynamoDB table using provide DynamoDB API interface
+// Returns error if result cannot be stored in DynamoDB table, otherwise nil
+func StoreUptime(uptime UptimeItem, tableName string, db dynamodbiface.DynamoDBAPI) error {
+	uptimeItem, err := dynamodbattribute.MarshalMap(uptime)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.PutItem(&dynamodb.PutItemInput{
+		Item:      uptimeItem,
+		TableName: aws.String(tableName),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

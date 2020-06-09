@@ -1,6 +1,6 @@
 GO=go
 AWS_ZIP=$(USERPROFILE)\Go\bin\build-lambda-zip.exe
-GOFILES=main.go dynamodb.go uptime.go sns.go
+GOFILES=lambda\main.go internal\dynamodb\dynamodb.go internal\uptime\uptime.go internal\sns\sns.go
 OUT_DIR=build
 OUT_BIN=$(OUT_DIR)/main
 OUT_ZIP=$(OUT_DIR)/main.zip

@@ -1,4 +1,4 @@
-module ping-service
+module monitor-uptime
 
 go 1.13
 

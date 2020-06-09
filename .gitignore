@@ -1,2 +1,5 @@
 # Build directory
 /build/**
+
+# IDE files
+/.idea/**
