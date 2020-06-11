@@ -3,3 +3,6 @@
 
 # IDE files
 /.idea/**
+
+# SonarQube files
+/.scannerwork

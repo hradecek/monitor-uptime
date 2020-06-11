@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dynamodbAPI "github.com/aws/aws-sdk-go/service/dynamodb"
+	snsAPI "github.com/aws/aws-sdk-go/service/sns"
 	"github.com/google/uuid"
 	"monitor-uptime/internal/dynamodb"
 	"monitor-uptime/internal/sns"
@@ -108,9 +109,10 @@ func HandleRequest(ctx context.Context, statusReq UptimeMonitorRequest) (UptimeM
 	}
 
 	if !hasExpectedStatusCode(response.StatusCode, statusReq.StatusCodes) {
+		snsClient := snsAPI.New(session.Must(session.NewSessionWithOptions(sessionOptions)))
 		err = sns.PublishUptime(sns.UptimeNotification{
 			StatusCode: response.StatusCode,
-		}, statusReq.UptimeID, getEnvString("SNS_TOPIC", "uptimes"))
+		}, statusReq.UptimeID, getEnvString("SNS_TOPIC", "uptimes"), snsClient)
 		if err != nil {
 			return UptimeMonitorResponse{}, err
 		}
