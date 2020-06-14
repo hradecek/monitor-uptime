@@ -10,12 +10,12 @@ import (
 // Represents uptime monitor result that will be stored in DynamoDB
 // Item contains all collected data from single uptime monitor run
 type UptimeItem struct {
-	RequestID  string `json:"requestId"`  // Uniquely identifies single uptime monitor's run
+	RequestID  string `json:"requestId"` // Uniquely identifies single uptime monitor's run
 	UptimeID   string `json:"uptimeId"`
-	RunAt      int64  `json:"runAt"`      // Timestamp when the uptime monitor has been invoked
+	RunAt      int64  `json:"runAt"` // Timestamp when the uptime monitor has been invoked
 	Host       string `json:"host"`
 	StatusCode int    `json:"statusCode"`
-	TTFB       int    `json:"ttfb"`       // Resulted 'time to first byte'
+	TTFB       int    `json:"ttfb"` // Resulted 'time to first byte'
 }
 
 // Store uptime monitor result in DynamoDB table using provide DynamoDB API interface

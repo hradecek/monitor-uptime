@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -39,7 +40,5 @@ func TestStoreItemPutItemFailure(t *testing.T) {
 	err := StoreUptime(uptimeItem, "SampleTable", mockDynamoDBClientBroken{})
 
 	// Then
-	if err == nil {
-		t.Error("Error was expected to be returned")
-	}
+	assert.NotNil(t, err, "Error was expected to be returned")
 }

@@ -1,6 +1,7 @@
 package uptime
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,23 +15,18 @@ func TestGetUptimeWebsiteUp(t *testing.T) {
 	// Given
 	hostHTTP := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(1 * time.Second)
 			w.WriteHeader(http.StatusOK)
-	}))
+		}))
 	defer hostHTTP.Close()
 
 	// When
 	result, err := GetUptime(hostHTTP.URL, 10)
 
 	// Then
-	if err != nil {
-		t.Error("Unexpected error happened", err)
-	}
-	if result.StatusCode != 200 {
-		t.Error("Unexpected status code", result.StatusCode)
-	}
-	if result.TTFB <= 0 {
-		t.Error("Unexpected TTFB value", result.TTFB)
-	}
+	assert.Nil(t, err, "Unexpected error happened")
+	assert.Equal(t, 200, result.StatusCode, "Unexpected status code")
+	assert.GreaterOrEqual(t, int64(result.TTFB), int64(0), "Unexpected TTFB value")
 }
 
 // Given host is up,
@@ -48,12 +44,8 @@ func TestGetUptimeHTTPStatusCode(t *testing.T) {
 	result, err := GetUptime(hostHTTP.URL, 10)
 
 	// Then
-	if err != nil {
-		t.Error("Unexpected error happened", err)
-	}
-	if result.StatusCode != http.StatusNotFound {
-		t.Error("Unexpected status code", result.StatusCode)
-	}
+	assert.Nil(t, err, "Unexpected error happened")
+	assert.Equal(t, http.StatusNotFound, result.StatusCode, "Unexpected HTTP status code")
 }
 
 // Given host is up
@@ -72,9 +64,7 @@ func TestGetUptimeTimeout(t *testing.T) {
 	_, err := GetUptime(hostHTTP.URL, 4)
 
 	// Then
-	if err == nil {
-		t.Error("Error was expected")
-	}
+	assert.NotNil(t, err, "Error was expected")
 }
 
 // When uptime is retrieved
@@ -85,9 +75,7 @@ func TestGetUptimeNonExistingHostURL(t *testing.T) {
 	_, err := GetUptime("non-existing-url", 10)
 
 	// Then
-	if err == nil {
-		t.Error("Uptime must return error")
-	}
+	assert.NotNil(t, err, "Error was expected")
 }
 
 // When uptime is retrieved
@@ -98,7 +86,5 @@ func TestGetUptimeMalformedHostURL(t *testing.T) {
 	_, err := GetUptime(string([]byte{00}), 10)
 
 	// Then
-	if err == nil {
-		t.Error("Uptime must return error")
-	}
+	assert.NotNil(t, err, "Error was expected")
 }
