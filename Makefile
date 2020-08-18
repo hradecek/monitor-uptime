@@ -1,21 +1,29 @@
 GO=go
-AWS_BUILD_LAMBDA_ZIP=$(USERPROFILE)/Go/bin/build-lambda-zip.exe
+ifdef OS
+	AWS_BUILD_LAMBDA_ZIP=$(USERPROFILE)/Go/bin/build-lambda-zip.exe
+else
+	AWS_BUILD_LAMBDA_ZIP=$(HOME)/go/bin/build-lambda-zip
+endif
 BUILD_DIR=build
 OUT_BIN=$(BUILD_DIR)/main
 OUT_ZIP=$(BUILD_DIR)/main.zip
 GOMAIN=lambda/main.go
-SONAR_SCANNER=sonar-scanner.bat
+ifdef OS
+	SONAR_SCANNER=sonar-scanner.bat
+else
+	SONAR_SCANNER=/opt/sonar-scanner/bin/sonar-scanner
+endif
 SONAR_PROJECT_KEY=monitor-uptime
 GO_TEST_JSON_REPORT=$(BUILD_DIR)/test_report.json
 GO_TEST_COVERAGE_OUT=$(BUILD_DIR)/coverage.out
 
-build: $(GOMAIN)
-	@echo "> Building application into '$(OUT_BIN)'"
-	GOOS=linux $(GO) build -o $(OUT_BIN) $(GOMAIN)
-
 zip: build
 	@echo "> Creating ZIP file into '$(OUT_BIN)'"
 	$(AWS_BUILD_LAMBDA_ZIP) --output $(OUT_ZIP) $(OUT_BIN)
+
+build: clean $(GOMAIN)
+	@echo "> Building application into '$(OUT_BIN)'"
+	GOOS=linux $(GO) build -o $(OUT_BIN) $(GOMAIN)
 
 test:
 	mkdir -p build
@@ -31,4 +39,5 @@ sonar: test
 					 -Dsonar.go.coverage.reportPaths=$(GO_TEST_COVERAGE_OUT)
 
 clean:
+	@echo "> Cleaning build directory '$(OUT_BIN)'"
 	@-rm -rf $(BUILD_DIR)

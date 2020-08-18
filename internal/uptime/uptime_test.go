@@ -17,7 +17,7 @@ func TestGetUptimeWebsiteUp(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(1 * time.Second)
 			w.WriteHeader(http.StatusOK)
-		}))
+	}))
 	defer hostHTTP.Close()
 
 	// When
@@ -27,6 +27,8 @@ func TestGetUptimeWebsiteUp(t *testing.T) {
 	assert.Nil(t, err, "Unexpected error happened")
 	assert.Equal(t, 200, result.StatusCode, "Unexpected status code")
 	assert.GreaterOrEqual(t, int64(result.TTFB), int64(0), "Unexpected TTFB value")
+	assert.GreaterOrEqual(t, int64(result.DNSLookup), int64(0), "Unexpected DNSLookup value")
+	assert.GreaterOrEqual(t, int64(result.TLSHandshake), int64(0), "Unexpected TLSHandshake value")
 }
 
 // Given host is up,

@@ -1,6 +1,7 @@
 package uptime
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptrace"
 	"time"
@@ -8,15 +9,17 @@ import (
 
 // Represents result of single uptime monitor run
 type Result struct {
-	StatusCode int
-	TTFB       time.Duration // Measured 'time to first byte'
+	StatusCode   int
+	TTFB         time.Duration // Measured Time To First Byte
+	DNSLookup    time.Duration // Measured duration of DNS lookup
+	TLSHandshake time.Duration // Measured duration of TLS handshake
 }
 
 // Creates single HTTP request and collects uptime monitor's metrics that are returned as result
 // In case of failure error is returned instead
 func GetUptime(host string, timeout int) (*Result, error) {
-	var startTime time.Time
-	var firstByteTime time.Duration
+	var connStartTime, dnsStartTime, tlsStartTime time.Time
+	var firstByteDuration, dnsDuration, tlsDuration time.Duration
 
 	req, err := http.NewRequest("GET", host, nil)
 	if err != nil {
@@ -25,10 +28,22 @@ func GetUptime(host string, timeout int) (*Result, error) {
 
 	trace := &httptrace.ClientTrace{
 		GetConn: func(_ string) {
-			startTime = time.Now()
+			connStartTime = time.Now()
 		},
 		GotFirstResponseByte: func() {
-			firstByteTime = time.Since(startTime)
+			firstByteDuration = time.Since(connStartTime)
+		},
+		DNSStart: func(_ httptrace.DNSStartInfo) {
+			dnsStartTime = time.Now()
+		},
+		DNSDone: func(_ httptrace.DNSDoneInfo) {
+			dnsDuration = time.Since(dnsStartTime)
+		},
+		TLSHandshakeStart: func() {
+			tlsStartTime = time.Now()
+		},
+		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
+			tlsDuration = time.Since(tlsStartTime)
 		},
 	}
 
@@ -43,7 +58,9 @@ func GetUptime(host string, timeout int) (*Result, error) {
 	}
 
 	return &Result{
-		StatusCode: res.StatusCode,
-		TTFB:       firstByteTime / time.Millisecond,
+		StatusCode:   res.StatusCode,
+		TTFB:         firstByteDuration.Round(time.Millisecond),
+		DNSLookup:    dnsDuration.Round(time.Millisecond),
+		TLSHandshake: tlsDuration.Round(time.Millisecond),
 	}, nil
 }

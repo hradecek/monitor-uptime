@@ -25,9 +25,11 @@ type UptimeMonitorRequest struct {
 
 // Represents uptime monitor service response
 type UptimeMonitorResponse struct {
-	Host       string `json:"host"`
-	StatusCode int    `json:"statusCode"` // Resulted status code
-	TTFB       int    `json:"ttfb"`       // Measured 'time to first byte'
+	Host         string `json:"host"`
+	StatusCode   int    `json:"statusCode"`   // Resulted status code
+	TTFB         int64  `json:"ttfb"`         // Measured Time To First Byte in milliseconds
+	DNSLookup    int64  `json:"dnslookup"`    // Measured duration of DNS lookup in milliseconds
+	TLSHandshake int64  `json:"tlshandshake"` // Measured duration of TLS handshake in milliseconds
 }
 
 // Get environment variable as string
@@ -53,15 +55,17 @@ func getEnvInt(key string, defaultValue int) int {
 // In case of failure error is returned
 func response(host string) (*UptimeMonitorResponse, error) {
 	hostUrl := sanityHTTPProtocol(host)
-	status, err := uptime.GetUptime(hostUrl, getEnvInt("TIMEOUT", 4))
+	response, err := uptime.GetUptime(hostUrl, getEnvInt("TIMEOUT", 4))
 	if err != nil {
 		return nil, err
 	}
 
 	return &UptimeMonitorResponse{
-		Host:       hostUrl,
-		StatusCode: status.StatusCode,
-		TTFB:       int(status.TTFB),
+		Host:         hostUrl,
+		StatusCode:   response.StatusCode,
+		TTFB:         response.TTFB.Milliseconds(),
+		DNSLookup:    response.DNSLookup.Milliseconds(),
+		TLSHandshake: response.TLSHandshake.Milliseconds(),
 	}, nil
 }
 
@@ -97,12 +101,14 @@ func HandleRequest(ctx context.Context, statusReq UptimeMonitorRequest) (UptimeM
 	sessionOptions := session.Options{SharedConfigState: session.SharedConfigEnable}
 	db := dynamodbAPI.New(session.Must(session.NewSessionWithOptions(sessionOptions)))
 	err = dynamodb.StoreUptime(dynamodb.UptimeItem{
-		RequestID:  uuid.New().String(),
-		UptimeID:   statusReq.UptimeID,
-		RunAt:      time.Now().Unix(),
-		Host:       statusReq.Host,
-		StatusCode: response.StatusCode,
-		TTFB:       response.TTFB,
+		RequestID:    uuid.New().String(),
+		UptimeID:     statusReq.UptimeID,
+		RunAt:        time.Now().Unix(),
+		Host:         statusReq.Host,
+		StatusCode:   response.StatusCode,
+		TTFB:         response.TTFB,
+		DNSLookup:    response.DNSLookup,
+		TLSHandshake: response.TLSHandshake,
 	}, getEnvString("DYNAMO_TABLE", "uptimes"), db)
 	if err != nil {
 		return UptimeMonitorResponse{}, err
