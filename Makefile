@@ -5,8 +5,8 @@ else
 	AWS_BUILD_LAMBDA_ZIP=$(HOME)/go/bin/build-lambda-zip
 endif
 BUILD_DIR=build
-OUT_BIN=$(BUILD_DIR)/main
-OUT_ZIP=$(BUILD_DIR)/main.zip
+OUT_BIN=$(BUILD_DIR)/uptime-monitor
+OUT_ZIP=$(BUILD_DIR)/uptime-monitor.zip
 GOMAIN=lambda/main.go
 ifdef OS
 	SONAR_SCANNER=sonar-scanner.bat
@@ -32,7 +32,7 @@ test:
 sonar: test
 	@echo "> Running SonarQube analysis"
 	$(SONAR_SCANNER) -Dsonar.projectKey=$(SONAR_PROJECT_KEY) \
-					 -Dsonar.projetName=$(SONAR_PROJECT_KEY) \
+					 -Dsonar.projectName=$(SONAR_PROJECT_KEY) \
 					 -Dsonar.test.inclusions=**/*_test.go \
 					 -Dsonar.sources=. \
 					 -Dsonar.go.tests.reportPaths=$(GO_TEST_JSON_REPORT) \
