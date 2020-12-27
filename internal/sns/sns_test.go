@@ -32,13 +32,13 @@ func TestPublishUptimeContainsUptimeID(t *testing.T) {
 	topicARN := "topic-ARN-1"
 	uptimeID, _ := uuid.NewRandom()
 	uptimeNotification := UptimeNotification{
-		StatusCode: 200,
+		Status: STATUS_OK,
 	}
 	snsClient := mockSNSClient{}
 	snsClient.On("Publish", expectedPublishInput(uptimeID, topicARN, uptimeNotification)).Return(&sns.PublishOutput{}, nil)
 
 	// When
-	err := PublishUptime(uptimeNotification, uptimeID.String(), topicARN, snsClient)
+	err := PublishUptimeStatus(&uptimeNotification, uptimeID.String(), topicARN, snsClient)
 
 	// Then
 	assert.Nil(t, err, "Unexpected error has happened")
@@ -68,13 +68,13 @@ func TestPublishUptimeSNSFailure(t *testing.T) {
 	// Given
 	uptimeID, _ := uuid.NewRandom()
 	uptimeNotification := UptimeNotification{
-		StatusCode: 200,
+		Status: STATUS_OK,
 	}
 	snsClient := mockSNSClient{}
 	snsClient.On("Publish", mock.Anything).Return(&sns.PublishOutput{}, errors.New("cannot publish to SNS topic"))
 
 	// When
-	err := PublishUptime(uptimeNotification, uptimeID.String(), "topic-ARN-1", snsClient)
+	err := PublishUptimeStatus(&uptimeNotification, uptimeID.String(), "topic-ARN-1", snsClient)
 
 	// Then
 	assert.NotNil(t, err, "Error was expected to be returned")

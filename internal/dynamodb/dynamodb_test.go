@@ -27,7 +27,7 @@ func TestStoreItemPutItemFailure(t *testing.T) {
 	// Given
 	requestID, _ := uuid.NewRandom()
 	uptimeID, _ := uuid.NewRandom()
-	uptimeItem := UptimeItem{
+	uptimeItem := UptimeResultItem{
 		RequestID:  requestID.String(),
 		UptimeID:   uptimeID.String(),
 		RunAt:      time.Now().Unix(),
@@ -37,7 +37,7 @@ func TestStoreItemPutItemFailure(t *testing.T) {
 	}
 
 	// When
-	err := StoreUptime(uptimeItem, "SampleTable", mockDynamoDBClientBroken{})
+	err := StoreUptimeResult(&uptimeItem, "SampleTable", mockDynamoDBClientBroken{})
 
 	// Then
 	assert.NotNil(t, err, "Error was expected to be returned")

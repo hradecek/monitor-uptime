@@ -23,7 +23,7 @@ zip: build
 
 build: clean $(GOMAIN)
 	@echo "> Building application into '$(OUT_BIN)'"
-	GOOS=linux $(GO) build -o $(OUT_BIN) $(GOMAIN)
+	CGO_ENABLED=0 GOOS=linux $(GO) build -o $(OUT_BIN) $(GOMAIN)
 
 test:
 	mkdir -p build

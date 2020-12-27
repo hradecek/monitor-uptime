@@ -5,6 +5,7 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws/session"
 	dynamodbAPI "github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	snsAPI "github.com/aws/aws-sdk-go/service/sns"
 	"github.com/google/uuid"
 	"monitor-uptime/internal/dynamodb"
@@ -33,8 +34,17 @@ type UptimeMonitorResponse struct {
 }
 
 // Get environment variable as string
+// If environment variable is not set, then nil is returned instead
+func getEnvString(key string) *string {
+	if value, ok := os.LookupEnv(key); ok {
+		return &value
+	}
+	return nil
+}
+
+// Get environment variable as string
 // If environment variable is not set, then default value is returned instead
-func getEnvString(key string, defaultValue string) string {
+func getEnvStringWithDefault(key string, defaultValue string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
@@ -78,7 +88,66 @@ func sanityHTTPProtocol(host string) string {
 	return host
 }
 
-// Check whether resulted status code matches to requested expectations
+// Stores uptime into Dynamo DB
+func storeUptime(statusReq *UptimeMonitorRequest, response *UptimeMonitorResponse, db dynamodbiface.DynamoDBAPI) error {
+	tableName := getEnvString("DYNAMO_TABLE_EXECUTIONS")
+	if tableName == nil {
+		return nil
+	}
+	return dynamodb.StoreUptimeResult(&dynamodb.UptimeResultItem{
+		RequestID:    uuid.New().String(),
+		UptimeID:     statusReq.UptimeID,
+		RunAt:        time.Now().Unix(),
+		Host:         statusReq.Host,
+		StatusCode:   response.StatusCode,
+		TTFB:         response.TTFB,
+		DNSLookup:    response.DNSLookup,
+		TLSHandshake: response.TLSHandshake,
+	}, *tableName, db)
+}
+
+// Updates uptime status in Dynamo DB
+// If status has been changed (e.g. cross threshold or uptime went from Fail to OK), then new status is returned
+func updateUptimeStatus(statusReq *UptimeMonitorRequest,
+	response *UptimeMonitorResponse,
+	db dynamodbiface.DynamoDBAPI) (*sns.UptimeStatus, error) {
+	var err error
+	var notify bool
+	var status sns.UptimeStatus
+
+	dbStatus := getEnvStringWithDefault("DYNAMO_TABLE_STATUS", "uptimeStatus")
+
+	if hasExpectedStatusCode(response.StatusCode, statusReq.StatusCodes) {
+		status = sns.STATUS_OK
+		notify, err = dynamodb.ClearUptimeStatus(statusReq.UptimeID, dbStatus, db)
+	} else {
+		status = sns.STATUS_FAIL
+		notify, err = dynamodb.UpdateUptimeStatus(statusReq.UptimeID, "3", dbStatus, db)
+	}
+
+	if err == nil {
+		if notify {
+			return &status, nil
+		} else {
+			return nil, nil
+		}
+	} else {
+		return nil, err
+	}
+}
+
+// Notify uptime monitor status via SNS
+func notifyUptimeStatus(uptimeId string, status sns.UptimeStatus, sessionOptions *session.Options) error {
+	snsTopicName := getEnvString("SNS_TOPIC")
+
+	if snsTopicName != nil {
+		snsClient := snsAPI.New(session.Must(session.NewSessionWithOptions(*sessionOptions)))
+		return sns.PublishUptimeStatus(&sns.UptimeNotification{Status: status}, uptimeId, *snsTopicName, snsClient)
+	}
+	return nil
+}
+
+// Checks whether resulted status code matches to requested expectations
 func hasExpectedStatusCode(actualStatusCode int, expectedStatusCodes []int) bool {
 	for _, expectedStatusCode := range expectedStatusCodes {
 		if expectedStatusCode == actualStatusCode {
@@ -88,43 +157,34 @@ func hasExpectedStatusCode(actualStatusCode int, expectedStatusCodes []int) bool
 	return false
 }
 
-// Handle uptime monitor lambda request
+// Handles uptime monitor lambda request
 // Get uptime response with measured metrics and stored it into DynamoDB
 // If resulted status code is not in expected status code provided in request, then send notification to SNS topic
 // In case of failure error is returned
-func HandleRequest(ctx context.Context, statusReq UptimeMonitorRequest) (UptimeMonitorResponse, error) {
-	response, err := response(statusReq.Host)
+func HandleRequest(ctx context.Context, req UptimeMonitorRequest) (UptimeMonitorResponse, error) {
+	res, err := response(req.Host)
 	if err != nil {
 		return UptimeMonitorResponse{}, err
 	}
 
 	sessionOptions := session.Options{SharedConfigState: session.SharedConfigEnable}
 	db := dynamodbAPI.New(session.Must(session.NewSessionWithOptions(sessionOptions)))
-	err = dynamodb.StoreUptime(dynamodb.UptimeItem{
-		RequestID:    uuid.New().String(),
-		UptimeID:     statusReq.UptimeID,
-		RunAt:        time.Now().Unix(),
-		Host:         statusReq.Host,
-		StatusCode:   response.StatusCode,
-		TTFB:         response.TTFB,
-		DNSLookup:    response.DNSLookup,
-		TLSHandshake: response.TLSHandshake,
-	}, getEnvString("DYNAMO_TABLE", "uptimes"), db)
-	if err != nil {
+	if err = storeUptime(&req, res, db); err != nil {
 		return UptimeMonitorResponse{}, err
 	}
 
-	if !hasExpectedStatusCode(response.StatusCode, statusReq.StatusCodes) {
-		snsClient := snsAPI.New(session.Must(session.NewSessionWithOptions(sessionOptions)))
-		err = sns.PublishUptime(sns.UptimeNotification{
-			StatusCode: response.StatusCode,
-		}, statusReq.UptimeID, getEnvString("SNS_TOPIC", "uptimes"), snsClient)
-		if err != nil {
+	var status *sns.UptimeStatus
+	status, err = updateUptimeStatus(&req, res, db)
+	if err != nil {
+		return UptimeMonitorResponse{}, err
+	}
+	if status != nil {
+		if err = notifyUptimeStatus(req.UptimeID, *status, &sessionOptions); err != nil {
 			return UptimeMonitorResponse{}, err
 		}
 	}
 
-	return *response, nil
+	return *res, nil
 }
 
 // Main AWS Lambda function
