@@ -52,10 +52,11 @@ func putItem(in interface{}, tableName string, db dynamodbiface.DynamoDBAPI) err
 // For every uptime monitor represented by uptimeID is defined constant threshold and variable failCounter.
 // By every call failCounter is incremented. When failCounter cross threshold then true is returned, otherwise false.
 // In case of error, non nil error is returned.
-func UpdateUptimeStatus(uptimeID string,
-	                    threshold string,
-	                    tableName string,
-	                    db dynamodbiface.DynamoDBAPI) (bool, error) {
+func UpdateUptimeStatus(
+	uptimeID string,
+	threshold string,
+	tableName string,
+	db dynamodbiface.DynamoDBAPI) (bool, error) {
 	result, err := db.UpdateItem(&dynamodb.UpdateItemInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":threshold": {
@@ -98,10 +99,11 @@ func ClearUptimeStatus(uptimeID string, tableName string, db dynamodbiface.Dynam
 				S: aws.String(uptimeID),
 			},
 		},
-		TableName: aws.String(tableName),
+		ReturnValues: aws.String("ALL_OLD"),
+		TableName:    aws.String(tableName),
 	})
 	if err != nil {
 		return false, err
 	}
-	return result != nil, nil
+	return result != nil && result.Attributes != nil, nil
 }

@@ -9,8 +9,9 @@ import (
 
 // Represents uptime status. Either OK or FAIL.
 type UptimeStatus string
-const(
-	STATUS_OK = "OK"
+
+const (
+	STATUS_OK   = "OK"
 	STATUS_FAIL = "FAIL"
 )
 
@@ -22,10 +23,11 @@ type UptimeNotification struct {
 // Publish uptime notification to SNS topic provided by its ARN
 // Published message contains single attribute with uptime ID, which serves for filtering purposes
 // Returns error if uptime notification cannot be published to SNS topic, otherwise nil
-func PublishUptimeStatus(uptimeNotification *UptimeNotification,
-						 uptimeID string,
-						 topicARN string,
-						 snsClient snsiface.SNSAPI) error {
+func PublishUptimeStatus(
+	uptimeNotification *UptimeNotification,
+	uptimeID string,
+	topicARN string,
+	snsClient snsiface.SNSAPI) error {
 	uptimeNotificationJson, err := json.Marshal(uptimeNotification)
 	if err != nil {
 		return err
@@ -35,7 +37,7 @@ func PublishUptimeStatus(uptimeNotification *UptimeNotification,
 		TopicArn: aws.String(topicARN),
 		Message:  aws.String(string(uptimeNotificationJson)),
 		MessageAttributes: map[string]*sns.MessageAttributeValue{
-			"uptimeID": {
+			"uptimeId": {
 				DataType:    aws.String("String"),
 				StringValue: aws.String(uptimeID),
 			},
